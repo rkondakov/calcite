@@ -350,7 +350,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     }
   }
 
-  public Collection<ConverterRule> getConverters(RelNode relNode) {
+  Collection<ConverterRule> getConverters(RelNode relNode) {
     return converters.get(relNode.getClass());
   }
 
@@ -358,11 +358,11 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     throw new UnsupportedOperationException("TODO"); // TODO: CODE: implement.
   }
 
-  public Set<RelOptRule> logicalRules() {
+  Set<RelOptRule> logicalRules() {
     return logicalRules;
   }
 
-  public Set<RelOptRule> physicalRules() {
+  Set<RelOptRule> physicalRules() {
     return physicalRules;
   }
 
@@ -405,7 +405,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     tasksStack.push(task);
   }
 
-  public RelOptCost getCost(RelNode rel, RelMetadataQuery mq) {
+  @Override public RelOptCost getCost(RelNode rel, RelMetadataQuery mq) {
     assert rel != null : "pre-condition: rel != null";
     if (rel instanceof RelSubGroup) {
       RelNode cheapest = ((RelSubGroup) rel).cheapestSoFar();
