@@ -31,6 +31,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.Converter;
+import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.logical.LogicalExchange;
 import org.apache.calcite.rel.logical.LogicalSort;
@@ -331,7 +332,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
   }
 
   @Override public boolean addRule(RelOptRule rule) {
-    if (rule instanceof ImplementationRule) {
+    if (rule instanceof ConverterRule) {
       return physicalRules.add(rule);
     } else {
       return logicalRules.add(rule);

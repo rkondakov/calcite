@@ -18,34 +18,34 @@ package org.apache.calcite.plan.cascades.rel;
 
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.cascades.CascadesRuleCall;
 import org.apache.calcite.plan.cascades.CascadesTestUtils;
-import org.apache.calcite.plan.cascades.ImplementationRule;
 import org.apache.calcite.rel.RelDistributions;
-import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.logical.LogicalExchange;
 
 /**
  *
  */
-public class CascadesTestExchangeRule extends ImplementationRule<LogicalExchange> {
+public class CascadesTestExchangeRule extends ConverterRule {
   public static final CascadesTestExchangeRule CASCADES_EXCHANGE_RULE =
       new CascadesTestExchangeRule();
+
   public CascadesTestExchangeRule() {
-    super(LogicalExchange.class,
-        r -> true,
-        Convention.NONE, CascadesTestUtils.CASCADES_TEST_CONVENTION, RelFactories.LOGICAL_BUILDER,
+    super(LogicalExchange.class, Convention.NONE, CascadesTestUtils.CASCADES_TEST_CONVENTION,
         "CascadesExchangeRule");
   }
 
-  @Override public void implement(LogicalExchange exchange, RelTraitSet requestedTraits,
-      CascadesRuleCall call) {
-    // Exchange preserves any other trait except distribution. We may request RelDistribution.ANY.
-    requestedTraits = requestedTraits.plus(RelDistributions.ANY);
+  @Override public RelNode convert(RelNode rel) {
+    LogicalExchange exchange = (LogicalExchange)rel;
+     // Exchange preserves any other trait except distribution. We may request RelDistribution.ANY.
+    RelTraitSet requestedTraits = rel.getTraitSet()
+        .plus(RelDistributions.ANY)
+        .plus(CascadesTestUtils.CASCADES_TEST_CONVENTION);
     CascadesTestExchange newExchange =  CascadesTestExchange.create(
         convert(exchange.getInput(), requestedTraits),
         exchange.getDistribution()
     );
-    call.transformTo(newExchange);
+    return newExchange;
   }
 }

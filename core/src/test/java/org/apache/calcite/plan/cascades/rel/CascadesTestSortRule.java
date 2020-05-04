@@ -18,32 +18,32 @@ package org.apache.calcite.plan.cascades.rel;
 
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.cascades.CascadesRuleCall;
 import org.apache.calcite.plan.cascades.CascadesTestUtils;
-import org.apache.calcite.plan.cascades.ImplementationRule;
 import org.apache.calcite.plan.cascades.RelSubGroup;
 import org.apache.calcite.rel.RelCollationTraitDef;
-import org.apache.calcite.rel.core.RelFactories;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.logical.LogicalSort;
 
 /**
  *
  */
-public class CascadesTestSortRule extends ImplementationRule<LogicalSort> {
+public class CascadesTestSortRule extends ConverterRule {
   public static final CascadesTestSortRule CASCADES_SORT_RULE =
       new CascadesTestSortRule();
 
   public CascadesTestSortRule() {
-    super(LogicalSort.class,
-        r -> true,
-        Convention.NONE, CascadesTestUtils.CASCADES_TEST_CONVENTION, RelFactories.LOGICAL_BUILDER,
+    super(LogicalSort.class, Convention.NONE, CascadesTestUtils.CASCADES_TEST_CONVENTION,
         "CascadesSortRule");
   }
 
-  @Override public void implement(LogicalSort sort, RelTraitSet requestedTraits,
-      CascadesRuleCall call) {
+  @Override public RelNode convert(RelNode rel) {
+    LogicalSort sort = (LogicalSort)rel;
     // Sort preserves any other trait except sorting. We may request RelCollation.ANY.
-    requestedTraits = requestedTraits.plus(RelCollationTraitDef.INSTANCE.getDefault());
+    RelTraitSet requestedTraits = sort.getTraitSet()
+        .plus(RelCollationTraitDef.INSTANCE.getDefault())
+        .plus(CascadesTestUtils.CASCADES_TEST_CONVENTION);
+
     RelSubGroup input = (RelSubGroup) convert(sort.getInput(), requestedTraits);
 
     CascadesTestSort newSort = CascadesTestSort.create(
@@ -51,7 +51,7 @@ public class CascadesTestSortRule extends ImplementationRule<LogicalSort> {
         sort.getCollation(),
         null,
         null);
-    call.transformTo(newSort);
-    call.transformTo(input);
+
+    return newSort;
   }
 }

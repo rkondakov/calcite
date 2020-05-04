@@ -26,6 +26,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.calcite.rel.convert.ConverterRule;
+
 import static org.apache.calcite.plan.cascades.CascadesUtils.isLogical;
 
 import static java.util.Collections.singletonList;
@@ -90,7 +92,7 @@ public class ApplyRule extends CascadesTask {
     }
     // Do not mark implementation rules as fired because we will fire it again
     // with another search context (another required traits)
-    if (!(rule instanceof ImplementationRule)) {
+    if (!(rule instanceof ConverterRule)) {
       planner.addFired(rule, topRel);
     }
   }

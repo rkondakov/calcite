@@ -16,12 +16,12 @@
  */
 package org.apache.calcite.plan.cascades;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.tools.RelBuilderFactory;
 
 import java.util.List;
@@ -33,12 +33,15 @@ import java.util.function.Predicate;
  * Rule that converts logical Rels to physical ones.
  * @param <R> RelNode.
  */
-public abstract class ImplementationRule<R extends RelNode>  extends RelOptRule {
+public abstract class ImplementationRule<R extends RelNode> extends ConverterRule {
 
-  public  ImplementationRule(Class<R> clazz,
+  public ImplementationRule(Class<R> clazz,
       Predicate<? super R> predicate, RelTrait in, RelTrait out,
       RelBuilderFactory relBuilderFactory, String descriptionPrefix) {
-    super(convertOperand(clazz, predicate, in),
+    super(clazz,
+        predicate,
+        in,
+        out,
         relBuilderFactory,
         createDescription(descriptionPrefix, in, out));
 
@@ -71,4 +74,12 @@ public abstract class ImplementationRule<R extends RelNode>  extends RelOptRule 
    * @param call Rule match.
    */
   public abstract void implement(R rel, RelTraitSet requestedTraits, CascadesRuleCall call);
+
+  /**
+   * Subclasses of {@link ImplementationRule} use
+   * {@link #implement(RelNode, RelTraitSet, CascadesRuleCall)} instead of this method.
+   */
+  @Override public RelNode convert(RelNode rel) {
+    throw new UnsupportedOperationException();
+  }
 }
