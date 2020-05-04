@@ -22,7 +22,6 @@ import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.cascades.CascadesPlanner;
-import org.apache.calcite.plan.cascades.Enforcer;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexExecutor;
@@ -153,9 +152,4 @@ public interface FrameworkConfig {
    * Whether to use {@link CascadesPlanner} instead of {@link VolcanoPlanner}.
    */
   boolean useCascadesPlanner();
-
-  /**
-   * Returns the list of trait enforcers.
-   */
-  ImmutableList<Enforcer> getEnforcers();
 }

@@ -16,6 +16,11 @@
  */
 package org.apache.calcite.plan.cascades;
 
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.Multimap;
+
+import java.util.Collection;
+
 import org.apache.calcite.config.CalciteSystemProperty;
 import org.apache.calcite.plan.AbstractRelOptPlanner;
 import org.apache.calcite.plan.Context;
@@ -24,6 +29,7 @@ import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
@@ -95,14 +101,15 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
 
   private final Set<Pair<RelNode, RelOptRule>> firedRules = new HashSet<>();
 
+  private final Multimap<Class<? extends RelNode>, ConverterRule>
+      converters = LinkedListMultimap.create();
+
   /**
    * Holds the currently registered RelTraitDefs.
    */
   private final List<RelTraitDef> traitDefs = new ArrayList<>();
 
   private RelTraitSet emptySet;
-
-  private final  Map<RelTraitDef, Enforcer> enforcers = new HashMap<>();
 
   public CascadesPlanner(RelOptCostFactory costFactory,
       Context context) {
@@ -239,7 +246,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     return subGroup == null ? null : subGroup.getGroup();
   }
 
-  private RelSubGroup getSubGroup(RelNode rel) {
+  RelSubGroup getSubGroup(RelNode rel) {
     assert rel != null;
     return rel instanceof RelSubGroup ? (RelSubGroup) rel : relToSubGroup.get(rel);
   }
@@ -333,37 +340,18 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
 
   @Override public boolean addRule(RelOptRule rule) {
     if (rule instanceof ConverterRule) {
+      if (!(rule instanceof ImplementationRule)) {
+        Class<? extends RelNode> matchedClazz = rule.getOperand().getMatchedClass();
+        converters.put(matchedClazz, (ConverterRule)rule);
+      }
       return physicalRules.add(rule);
     } else {
       return logicalRules.add(rule);
     }
   }
 
-  public <T extends RelTrait> void addEnforcer(Enforcer<T> enforcer) {
-    enforcers.put(enforcer.traitDef(), enforcer);
-  }
-
-
-  public <T extends RelTrait> RelSubGroup enforce(RelNode rel, T toTrait) {
-    RelTraitDef<T> traitDef = toTrait.getTraitDef();
-    Enforcer<T> enforcer = enforcers.get(traitDef);
-    T fromTrait = rel.getTraitSet().getTrait(traitDef);
-
-    if (fromTrait.satisfies(toTrait)) {
-      return getSubGroup(rel);
-    }
-    // TODO composite traits handling
-    if (!traitDef.canConvert(this, fromTrait, toTrait, rel)) {
-      return null;
-    }
-
-    RelNode enforcedRel = enforcer.enforce(rel, toTrait);
-
-    if (enforcedRel == null) {
-      return null;
-    }
-
-    return register(enforcedRel, rel);
+  public Collection<ConverterRule> getConverters(RelNode relNode) {
+    return converters.get(relNode.getClass());
   }
 
   @Override public boolean removeRule(RelOptRule rule) {

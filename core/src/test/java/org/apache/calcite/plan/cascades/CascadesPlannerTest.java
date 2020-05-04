@@ -21,8 +21,6 @@ import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.cascades.rel.CascadesTestDistributionEnforcer;
-import org.apache.calcite.plan.cascades.rel.CascadesTestSortEnforcer;
 import org.apache.calcite.plan.cascades.rel.TestTable;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelCollations;
@@ -347,14 +345,9 @@ public class CascadesPlannerTest {
     rules.addAll(PHYSICAL_RULES);
     rules.addAll(LOGICAL_RULES);
 
-    List<Enforcer> enforcers = new ArrayList<>();
-    enforcers.add(CascadesTestSortEnforcer.INSTANCE);
-    enforcers.add(CascadesTestDistributionEnforcer.INSTANCE);
-
     FrameworkConfig config = Frameworks.newConfigBuilder()
         .useCascadesPlanner(true)
         .defaultSchema(rootSchema)
-        .enforcers(enforcers)
         .programs(Programs.ofRules(rules))
         .traitDefs(ConventionTraitDef.INSTANCE,
             RelCollationTraitDef.INSTANCE,

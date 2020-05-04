@@ -44,7 +44,7 @@ public class CascadesTestSortRule extends ConverterRule {
         .plus(RelCollationTraitDef.INSTANCE.getDefault())
         .plus(CascadesTestUtils.CASCADES_TEST_CONVENTION);
 
-    RelSubGroup input = (RelSubGroup) convert(sort.getInput(), requestedTraits);
+    RelNode input = convert(sort.getInput(), requestedTraits);
 
     CascadesTestSort newSort = CascadesTestSort.create(
         input,

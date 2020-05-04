@@ -16,13 +16,18 @@
  */
 package org.apache.calcite.plan.cascades;
 
+import java.util.Collection;
+
 import org.apache.calcite.plan.RelTrait;
+import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelNode;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.calcite.rel.convert.ConverterRule;
 
 import static org.apache.calcite.plan.cascades.CascadesUtils.differenceWithoutConvention;
 import static org.apache.calcite.plan.cascades.CascadesUtils.isLogical;
@@ -55,7 +60,7 @@ public class CompleteGroupOptimization extends CascadesTask  {
         // TODO Handle composite traits more elegantly
         List<RelTrait> tList = diff.getTraits(trait.getTraitDef());
         for (RelTrait t : tList) {
-          relNode = planner.enforce(relNode, t);
+          relNode = enforce(relNode, t);
           if (relNode == null) {
             break outer;
           }
@@ -68,6 +73,37 @@ public class CompleteGroupOptimization extends CascadesTask  {
         subGroup.updateWinnerIfNeeded((PhysicalNode) physicalNode);
       }
     }
+  }
+
+  private <T extends RelTrait> RelSubGroup enforce(RelNode rel, T toTrait) {
+    RelTraitDef<T> traitDef = toTrait.getTraitDef();
+    T fromTrait = rel.getTraitSet().getTrait(traitDef);
+
+    if (fromTrait.satisfies(toTrait)) {
+      return planner.getSubGroup(rel);
+    }
+    // TODO composite traits handling
+    if (!traitDef.canConvert(planner, fromTrait, toTrait, rel)) {
+      return null;
+    }
+
+    RelNode logicalNode = traitDef.convert(null, rel, toTrait, false);
+
+    Collection<ConverterRule> converters = planner.getConverters(logicalNode);
+    ConverterRule converter = converters == null || converters.isEmpty()
+        ? null
+        : converters.iterator().next();
+
+    if (converter == null)
+      return null;
+
+    RelNode enforcedRel = converter.convert(logicalNode);
+
+    if (enforcedRel == null) {
+      return null;
+    }
+
+    return planner.register(enforcedRel, rel);
   }
 
   @Override protected void description(StringBuilder stringBuilder) {
