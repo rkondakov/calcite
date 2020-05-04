@@ -84,6 +84,8 @@ public class RelGroup {
     } else {
       physicalRels.add(rel);
 
+      subGroup.onRelAdded(rel);
+
       updateWinners(rel);
     }
     for (RelTrait trait : rel.getTraitSet()) {

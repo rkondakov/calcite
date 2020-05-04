@@ -52,11 +52,11 @@ public class RelSubGroup extends AbstractRelNode {
 
   private final RelGroup group;
 
-  private PhysicalNode winner;
+  private RelNode winner;
 
   private double winnerCost = Double.POSITIVE_INFINITY;
 
-  private PhysicalNode cheapestSoFar;
+  private RelNode cheapestSoFar;
 
   private CascadesCost cheapestCostSoFar;
 
@@ -76,7 +76,7 @@ public class RelSubGroup extends AbstractRelNode {
     return winnerCost;
   }
 
-  public PhysicalNode winnerRel() {
+  public RelNode winnerRel() {
     return winner;
   }
 
@@ -89,11 +89,11 @@ public class RelSubGroup extends AbstractRelNode {
     if (cheapestCostSoFar == null || curCost.scalarCost() < cheapestCostSoFar.scalarCost()) {
       // TODO winner cost assertions
       cheapestCostSoFar = curCost;
-      cheapestSoFar = (PhysicalNode) rel;
+      cheapestSoFar = rel;
     }
   }
 
-  public PhysicalNode cheapestSoFar() {
+  public RelNode cheapestSoFar() {
     return cheapestSoFar;
   }
 
@@ -101,7 +101,8 @@ public class RelSubGroup extends AbstractRelNode {
     return cheapestCostSoFar;
   }
 
-  public void updateWinnerIfNeeded(PhysicalNode rel) {
+  public void updateWinnerIfNeeded(RelNode rel) {
+    assert !isLogical(rel);
     double cost = getScalarCost(rel);
     if (rel.getTraitSet().satisfies(traitSet) && winnerCost > cost) {
       winner = rel;

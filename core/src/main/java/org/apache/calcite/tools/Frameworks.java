@@ -17,6 +17,7 @@
 package org.apache.calcite.tools;
 
 import org.apache.calcite.config.CalciteConnectionProperty;
+import org.apache.calcite.config.CalciteSystemProperty;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.materialize.SqlStatisticProvider;
 import org.apache.calcite.plan.Context;
@@ -242,7 +243,7 @@ public class Frameworks {
       typeSystem = RelDataTypeSystem.DEFAULT;
       evolveLattice = false;
       statisticProvider = QuerySqlStatisticProvider.SILENT_CACHING_INSTANCE;
-      useCascadesPlanner = false;
+      useCascadesPlanner = CalciteSystemProperty.USE_CASCADES.value();
     }
 
     /** Creates a ConfigBuilder, initializing from an existing config. */

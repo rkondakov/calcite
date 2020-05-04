@@ -47,13 +47,16 @@ public class CascadesRuleCall extends RelOptRuleCall {
   @Override public void transformTo(RelNode rel,
       Map<RelNode, RelNode> equiv,
       RelHintsPropagator handler) {
-    assert equiv.isEmpty() : equiv; // TODO support equiv map.
     //assert resultRel == null;
    // rel = handler.propagate(rels[0], rel); // TODO support hints
-    assert equiv == null || equiv.isEmpty();
+    //assert equiv == null || equiv.isEmpty();
 
     // Physical rels will be registered after inputs optimization
     if (isLogical(rel)) {
+      for (Map.Entry<RelNode, RelNode> entry : equiv.entrySet()) {
+        getPlanner().ensureRegistered(
+            entry.getKey(), entry.getValue());
+      }
       rel = rel.onRegister(getPlanner());
       getPlanner().ensureRegistered(rel, rels[0]);
     }

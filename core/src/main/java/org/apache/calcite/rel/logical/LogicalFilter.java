@@ -19,6 +19,7 @@ package org.apache.calcite.rel.logical;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.cascades.CascadesPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelInput;
@@ -106,12 +107,20 @@ public final class LogicalFilter extends Filter {
       ImmutableSet<CorrelationId> variablesSet) {
     final RelOptCluster cluster = input.getCluster();
     final RelMetadataQuery mq = cluster.getMetadataQuery();
-    final RelTraitSet traitSet = cluster.traitSetOf(Convention.NONE)
+    final RelTraitSet traitSet = getTraits(input, cluster, mq);
+    return new LogicalFilter(cluster, traitSet, input, condition, variablesSet);
+  }
+
+  public static RelTraitSet getTraits(RelNode input, RelOptCluster cluster, RelMetadataQuery mq) {
+    if (cluster.getPlanner() instanceof CascadesPlanner) {
+      return cluster.getPlanner().emptyTraitSet();
+    }
+
+    return cluster.traitSetOf(Convention.NONE)
         .replaceIfs(RelCollationTraitDef.INSTANCE,
             () -> RelMdCollation.filter(mq, input))
         .replaceIf(RelDistributionTraitDef.INSTANCE,
             () -> RelMdDistribution.filter(mq, input));
-    return new LogicalFilter(cluster, traitSet, input, condition, variablesSet);
   }
 
   //~ Methods ----------------------------------------------------------------

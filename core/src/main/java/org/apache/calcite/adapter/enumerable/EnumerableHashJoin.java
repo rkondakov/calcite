@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.adapter.enumerable;
 
+import java.util.Collections;
+
 import org.apache.calcite.linq4j.tree.BlockBuilder;
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.linq4j.tree.Expressions;
@@ -23,6 +25,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.cascades.CascadesPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelNodes;
@@ -86,11 +89,21 @@ public class EnumerableHashJoin extends Join implements EnumerableRel {
     final RelOptCluster cluster = left.getCluster();
     final RelMetadataQuery mq = cluster.getMetadataQuery();
     final RelTraitSet traitSet =
-        cluster.traitSetOf(EnumerableConvention.INSTANCE)
-            .replaceIfs(RelCollationTraitDef.INSTANCE,
-                () -> RelMdCollation.enumerableHashJoin(mq, left, right, joinType));
+        getTraits(left, right, joinType, cluster, mq);
     return new EnumerableHashJoin(cluster, traitSet, left, right, condition,
         variablesSet, joinType);
+  }
+
+  public static RelTraitSet getTraits(RelNode left, RelNode right, JoinRelType joinType,
+      RelOptCluster cluster,
+      RelMetadataQuery mq) {
+    if (cluster.getPlanner() instanceof CascadesPlanner) {
+      return cluster.getPlanner().emptyTraitSet().plus(EnumerableConvention.INSTANCE);
+    }
+
+    return cluster.traitSetOf(EnumerableConvention.INSTANCE)
+        .replaceIfs(RelCollationTraitDef.INSTANCE,
+            () -> RelMdCollation.enumerableHashJoin(mq, left, right, joinType));
   }
 
   @Override public EnumerableHashJoin copy(RelTraitSet traitSet, RexNode condition,

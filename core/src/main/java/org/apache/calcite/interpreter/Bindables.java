@@ -18,6 +18,7 @@ package org.apache.calcite.interpreter;
 
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.enumerable.AggImplementor;
+import org.apache.calcite.adapter.enumerable.EnumerableTableScan;
 import org.apache.calcite.adapter.enumerable.RexImpTable;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.Convention;
@@ -147,7 +148,7 @@ public class Bindables {
 
   /** Rule that converts a {@link org.apache.calcite.rel.core.TableScan}
    * to bindable convention. */
-  public static class BindableTableScanRule extends RelOptRule {
+  public static class BindableTableScanRule extends ConverterRule {
 
     /**
      * Creates a BindableTableScanRule.
@@ -155,16 +156,19 @@ public class Bindables {
      * @param relBuilderFactory Builder for relational expressions
      */
     public BindableTableScanRule(RelBuilderFactory relBuilderFactory) {
-      super(operand(LogicalTableScan.class, none()), relBuilderFactory, null);
+      super(LogicalTableScan.class,
+          (Predicate<LogicalTableScan>) r -> BindableTableScan.canHandle(r.getTable()),
+          Convention.NONE, BindableConvention.INSTANCE, relBuilderFactory,
+          "BindableTableScanRule");
     }
 
-    @Override public void onMatch(RelOptRuleCall call) {
-      final LogicalTableScan scan = call.rel(0);
+    @Override public RelNode convert(RelNode rel) {
+      final LogicalTableScan scan = (LogicalTableScan)rel;
       final RelOptTable table = scan.getTable();
       if (BindableTableScan.canHandle(table)) {
-        call.transformTo(
-            BindableTableScan.create(scan.getCluster(), table));
+        return  BindableTableScan.create(scan.getCluster(), table);
       }
+      return null;
     }
   }
 

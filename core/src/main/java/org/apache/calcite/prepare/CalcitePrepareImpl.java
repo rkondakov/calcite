@@ -57,6 +57,7 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.cascades.CascadesPlanner;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollationTraitDef;
@@ -152,6 +153,8 @@ public class CalcitePrepareImpl implements CalcitePrepare {
    * plan. If not, enumerable convention is the default. */
   public final boolean enableBindable = Hook.ENABLE_BINDABLE.get(false);
 
+  private final boolean useCascadesPlanner = CalciteSystemProperty.USE_CASCADES.value();
+
   private static final Set<String> SIMPLE_SQLS =
       ImmutableSet.of(
           "SELECT 1",
@@ -213,7 +216,9 @@ public class CalcitePrepareImpl implements CalcitePrepare {
         enableBindable ? BindableConvention.INSTANCE
             : EnumerableConvention.INSTANCE;
     // Use the Volcano because it can handle the traits.
-    final RelOptPlanner planner = new VolcanoPlanner();
+    final RelOptPlanner planner = useCascadesPlanner
+        ? new CascadesPlanner(null, null)
+        : new VolcanoPlanner();
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
 
     final SqlToRelConverter.ConfigBuilder configBuilder =
@@ -425,8 +430,9 @@ public class CalcitePrepareImpl implements CalcitePrepare {
     if (externalContext == null) {
       externalContext = Contexts.of(prepareContext.config());
     }
-    final VolcanoPlanner planner =
-        new VolcanoPlanner(costFactory, externalContext);
+    final RelOptPlanner planner = useCascadesPlanner
+        ? new CascadesPlanner(costFactory, externalContext)
+        : new VolcanoPlanner(costFactory, externalContext);
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
     if (CalciteSystemProperty.ENABLE_COLLATION_TRAIT.value()) {
       planner.addRelTraitDef(RelCollationTraitDef.INSTANCE);

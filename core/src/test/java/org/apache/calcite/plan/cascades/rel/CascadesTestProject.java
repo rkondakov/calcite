@@ -61,8 +61,6 @@ public class CascadesTestProject extends Project implements PhysicalNode {
     RelNode input = newInputs.get(0);
     RelTraitSet traits = input.getTraitSet();
     Mappings.TargetMapping mapping = getMapping();
-
-
     if (mapping == null) {
       // Clear traits if no mapping possible.
       traits = emptyTraits(traits);

@@ -58,7 +58,9 @@ class OptimizeRel extends CascadesTask {
     if (!explore) {
       List<RelOptRule> physRules = findMatchedRules(planner.physicalRules());
       if (physRules.isEmpty()) {
-        throw new RelOptPlanner.CannotPlanException("Converter is absent for rel=" + rel);
+       // return;
+//        findMatchedRules(planner.physicalRules());
+//        throw new RelOptPlanner.CannotPlanException("Converter is absent for rel=" + rel);
       }
       rules.addAll(physRules);
     }

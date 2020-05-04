@@ -186,10 +186,14 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
 
     // Do not register Sort and other converters because all trait
     // conversions will be added during optimization
-    if (rel instanceof LogicalSort) {
+    if (rel instanceof LogicalSort) { // TODO mark sort/exchange with Enforcer interface
       rel = ((LogicalSort) rel).getInput();
     } else if (rel instanceof LogicalExchange) {
       rel = ((LogicalExchange) rel).getInput();
+    }
+
+    if (isLogical(rel) && !rel.getTraitSet().equals(emptyTraitSet())) {
+      rel = rel.copy(emptyTraitSet(), rel.getInputs());
     }
 
     // Register inputs and compute digest.
@@ -339,24 +343,36 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
   }
 
   @Override public boolean addRule(RelOptRule rule) {
+    if (!super.addRule(rule)) {
+      return false;
+    }
     if (rule instanceof ConverterRule) {
       if (!(rule instanceof ImplementationRule)) {
         Class<? extends RelNode> matchedClazz = rule.getOperand().getMatchedClass();
         converters.put(matchedClazz, (ConverterRule)rule);
       }
       return physicalRules.add(rule);
+
+      // TODO register in traits.
     } else {
       return logicalRules.add(rule);
     }
+  }
+
+  @Override public boolean removeRule(RelOptRule rule) {
+    super.removeRule(rule);
+    physicalRules.remove(rule);
+    logicalRules.remove(rule);
+    // TODO deregister from traits.
+    // TODO remove from converters.
+    return true;
   }
 
   Collection<ConverterRule> getConverters(RelNode relNode) {
     return converters.get(relNode.getClass());
   }
 
-  @Override public boolean removeRule(RelOptRule rule) {
-    throw new UnsupportedOperationException("TODO"); // TODO: CODE: implement.
-  }
+
 
   Set<RelOptRule> logicalRules() {
     return logicalRules;
@@ -492,7 +508,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
       pw.print(group.getId());
       pw.println("{");
       pw.print("\t\tlabel=");
-      Util.printJavaString(pw, "Group " + group.getId() + " " + group.rowType(), false);
+      Util.printJavaString(pw, "Group " + group.getId() + " " /*+ group.rowType()*/, false); // TODO uncomment
       pw.print(";\n");
 
       // TODO print logical and physical nodes in different manner

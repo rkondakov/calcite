@@ -20,6 +20,7 @@ import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.logical.LogicalSort;
 
 /**
  * Rule to convert an {@link org.apache.calcite.rel.core.Sort} to an
@@ -27,7 +28,7 @@ import org.apache.calcite.rel.core.Sort;
  */
 class EnumerableSortRule extends ConverterRule {
   EnumerableSortRule() {
-    super(Sort.class, Convention.NONE, EnumerableConvention.INSTANCE,
+    super(LogicalSort.class, Convention.NONE, EnumerableConvention.INSTANCE,
         "EnumerableSortRule");
   }
 

@@ -31,7 +31,7 @@ import static org.apache.calcite.plan.cascades.CascadesUtils.isLogical;
  * with desired traits.
  */
 class OptimizeInputs extends CascadesTask {
-  private final PhysicalNode rel;
+  private final RelNode rel;
   private final double upperBound;
   private final double[] inputsCost;
   private final List<RelNode> inputs;
@@ -47,7 +47,7 @@ class OptimizeInputs extends CascadesTask {
     assert !isLogical(rel);
     assert upperBound >= 0;
     this.upperBound  = upperBound;
-    this.rel = (PhysicalNode) rel;
+    this.rel =  rel;
     this.group = group;
     inputs = new ArrayList<>(rel.getInputs().size());
     for (int i = 0; i < rel.getInputs().size(); i++) {
@@ -121,7 +121,11 @@ class OptimizeInputs extends CascadesTask {
       RelSubGroup subGroup = planner.ensureRegistered(input, null);
       newInputs.add(subGroup);
     }
-    PhysicalNode newPhysNode = rel.withNewInputs(newInputs);
+    // TODO make all PhysicalNodes?
+    RelNode newPhysNode = rel;
+    if (rel instanceof PhysicalNode) {
+      newPhysNode = ((PhysicalNode)rel).withNewInputs(newInputs);
+    }
     // TODO pruning
     planner.ensureRegistered(newPhysNode, group.originalRel());
     newPhysNode.getCluster().invalidateMetadataQuery();

@@ -70,7 +70,7 @@ public class CompleteGroupOptimization extends CascadesTask  {
     RelSubGroup subGroup = group.getSubGroup(requestedTraits);
     if (subGroup.winnerRel() == null) {
       for (RelNode physicalNode : group.physicalRels()) {
-        subGroup.updateWinnerIfNeeded((PhysicalNode) physicalNode);
+        subGroup.updateWinnerIfNeeded(physicalNode);
       }
     }
   }
@@ -83,7 +83,7 @@ public class CompleteGroupOptimization extends CascadesTask  {
       return planner.getSubGroup(rel);
     }
     // TODO composite traits handling
-    if (!traitDef.canConvert(planner, fromTrait, toTrait, rel)) {
+    if (!traitDef.canConvert(planner, null, toTrait, rel)) {
       return null;
     }
 

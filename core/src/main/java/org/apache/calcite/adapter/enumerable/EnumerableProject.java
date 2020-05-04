@@ -18,6 +18,7 @@ package org.apache.calcite.adapter.enumerable;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
@@ -31,9 +32,11 @@ import com.google.common.collect.ImmutableList;
 
 import java.util.List;
 
+import org.apache.calcite.util.mapping.Mappings;
+
 /** Implementation of {@link org.apache.calcite.rel.core.Project} in
  * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
-public class EnumerableProject extends Project implements EnumerableRel {
+public class EnumerableProject extends Project implements EnumerableRel, PhysicalNode {
   /**
    * Creates an EnumerableProject.
    *
@@ -85,5 +88,22 @@ public class EnumerableProject extends Project implements EnumerableRel {
   public Result implement(EnumerableRelImplementor implementor, Prefer pref) {
     // EnumerableCalcRel is always better
     throw new UnsupportedOperationException();
+  }
+
+  @Override public PhysicalNode withNewInputs(List<RelNode> newInputs) {
+    RelNode input = newInputs.get(0);
+    RelTraitSet traits = input.getTraitSet().replace(EnumerableConvention.INSTANCE);
+    Mappings.TargetMapping mapping = getMapping();
+    if (mapping == null) {
+      // Clear traits if no mapping possible.
+      traits = traits.replace(RelCollationTraitDef.INSTANCE.getDefault());
+    } else {
+      RelTraitSet newTraits = traits.apply(mapping);
+      traits = newTraits == null
+          ? traits.replace(RelCollationTraitDef.INSTANCE.getDefault())
+          : newTraits;
+    }
+
+    return copy(traits, input, getProjects(), getRowType());
   }
 }

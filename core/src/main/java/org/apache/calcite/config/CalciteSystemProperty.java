@@ -30,6 +30,9 @@ import java.util.function.Function;
 import java.util.function.IntPredicate;
 import java.util.stream.Stream;
 
+import org.apache.calcite.plan.cascades.CascadesPlanner;
+import org.apache.calcite.plan.volcano.VolcanoPlanner;
+
 /**
  * A Calcite specific system property that is used to configure various aspects of the framework.
  *
@@ -129,6 +132,12 @@ public final class CalciteSystemProperty<T> {
   // property and just use TEST_MONGODB?
   public static final CalciteSystemProperty<Boolean> INTEGRATION_TEST =
       booleanProperty("calcite.integrationTest", false);
+
+  /**
+   * Whether to use {@link CascadesPlanner} instead of {@link VolcanoPlanner}.
+   */
+  public static final CalciteSystemProperty<Boolean> USE_CASCADES =
+      booleanProperty("calcite.use.cascades.planner", true);
 
   /**
    * Which database to use for tests that require a JDBC data source.
