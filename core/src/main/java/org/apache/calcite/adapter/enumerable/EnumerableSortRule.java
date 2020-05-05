@@ -19,6 +19,7 @@ package org.apache.calcite.adapter.enumerable;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.convert.TraitsEnforcementRule;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalSort;
 
@@ -26,7 +27,7 @@ import org.apache.calcite.rel.logical.LogicalSort;
  * Rule to convert an {@link org.apache.calcite.rel.core.Sort} to an
  * {@link EnumerableSort}.
  */
-class EnumerableSortRule extends ConverterRule {
+class EnumerableSortRule extends TraitsEnforcementRule {
   EnumerableSortRule() {
     super(LogicalSort.class, Convention.NONE, EnumerableConvention.INSTANCE,
         "EnumerableSortRule");

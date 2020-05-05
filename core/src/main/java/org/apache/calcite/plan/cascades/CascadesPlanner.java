@@ -25,12 +25,14 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.Converter;
 import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.convert.TraitsEnforcementRule;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.logical.LogicalExchange;
 import org.apache.calcite.rel.logical.LogicalProject;
@@ -99,7 +101,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
 
   private final Set<Pair<RelNode, RelOptRule>> firedRules = new HashSet<>();
 
-  private final Multimap<Class<? extends RelNode>, ConverterRule>
+  private final Multimap<Class<? extends RelNode>, TraitsEnforcementRule>
       converters = LinkedListMultimap.create();
 
   /**
@@ -364,13 +366,18 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
       return false;
     }
     if (rule instanceof ConverterRule) {
-      if (!(rule instanceof ImplementationRule)) {
+      if (rule instanceof TraitsEnforcementRule) {
         Class<? extends RelNode> matchedClazz = rule.getOperand().getMatchedClass();
-        converters.put(matchedClazz, (ConverterRule)rule);
+        converters.put(matchedClazz, (TraitsEnforcementRule)rule);
+        ConverterRule converterRule = (ConverterRule) rule;
+        final RelTrait ruleTrait = converterRule.getInTrait();
+        final RelTraitDef ruleTraitDef = ruleTrait.getTraitDef();
+        if (traitDefs.contains(ruleTraitDef)) {
+          ruleTraitDef.registerConverterRule(this, converterRule);
+        }
       }
-      return physicalRules.add(rule);
 
-      // TODO register in traits.
+      return physicalRules.add(rule);
     } else {
       return logicalRules.add(rule);
     }
@@ -380,12 +387,18 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     super.removeRule(rule);
     physicalRules.remove(rule);
     logicalRules.remove(rule);
-    // TODO deregister from traits.
-    // TODO remove from converters.
+    if (rule instanceof ConverterRule) {
+      ConverterRule converterRule = (ConverterRule) rule;
+      final RelTrait ruleTrait = converterRule.getInTrait();
+      final RelTraitDef ruleTraitDef = ruleTrait.getTraitDef();
+      if (traitDefs.contains(ruleTraitDef)) {
+        ruleTraitDef.deregisterConverterRule(this, converterRule);
+      }
+    }
     return true;
   }
 
-  Collection<ConverterRule> getConverters(RelNode relNode) {
+  Collection<TraitsEnforcementRule> getConverters(RelNode relNode) {
     return converters.get(relNode.getClass());
   }
 

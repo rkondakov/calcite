@@ -19,6 +19,7 @@ package org.apache.calcite.rel;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.cascades.CascadesPlanner;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalSort;
 
@@ -74,7 +75,7 @@ public class RelCollationTraitDef extends RelTraitDef<RelCollation> {
     // convention)
     final Sort sort = LogicalSort.create(rel, toCollation, null, null);
 
-    if (planner == null) {
+    if (planner instanceof CascadesPlanner) {
       return sort;
     }
 

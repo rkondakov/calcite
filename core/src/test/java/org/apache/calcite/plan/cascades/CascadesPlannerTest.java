@@ -71,8 +71,7 @@ public class CascadesPlannerTest {
         + "  LogicalTableScan(table=[[PUBLIC, EMPS]])\n";
     String physicalPlan = ""
         + "CascadesTestExchange(distribution=[single])\n"
-        + "  CascadesTestProject(id=[$0], age=[$1], name=[$2], depId=[$3], projectId=[$4])\n"
-        + "    CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[]])\n";
+        + "  CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[]])\n";
 
     checkPlan(sql, logicalPlan, physicalPlan);
   }
@@ -85,9 +84,8 @@ public class CascadesPlannerTest {
         + "    LogicalTableScan(table=[[PUBLIC, EMPS]])\n";
     String physicalPlan = ""
         + "CascadesTestExchange(distribution=[single])\n"
-        + "  CascadesTestProject(id=[$0], age=[$1], name=[$2], depId=[$3], projectId=[$4])\n"
-        + "    CascadesTestFilter(condition=[=($2, 'Leonhard Euler')])\n"
-        + "      CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[]])\n";
+        + "  CascadesTestFilter(condition=[=($2, 'Leonhard Euler')])\n"
+        + "    CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[]])\n";
 
     checkPlan(sql, logicalPlan, physicalPlan);
   }
@@ -116,6 +114,40 @@ public class CascadesPlannerTest {
         + "CascadesTestExchange(distribution=[single])\n"
         + "  CascadesTestProject(id=[$0], age=[$1], name=[$2], depId=[$3], projectId=[$4])\n"
         + "    CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[0]])\n";
+
+    checkPlan(sql, logicalPlan, physicalPlan);
+  }
+
+  @Test public void selectOrderByNonIndexedColumn() throws Exception {
+    String sql = "select * from emps order by \"name\"";
+    String logicalPlan = ""
+        + "LogicalSort(sort0=[$2], dir0=[ASC])\n"
+        + "  LogicalProject(id=[$0], age=[$1], name=[$2], depId=[$3], projectId=[$4])\n"
+        + "    LogicalTableScan(table=[[PUBLIC, EMPS]])\n";
+    String physicalPlan = ""
+        + "CascadesTestExchange(distribution=[single])\n"
+        + "  CascadesTestProject(id=[$0], age=[$1], name=[$2], depId=[$3], projectId=[$4])\n"
+        + "    CascadesTestSort(sort0=[$2], dir0=[ASC])\n"
+        + "      CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[]])\n";
+
+    checkPlan(sql, logicalPlan, physicalPlan);
+  }
+
+  // TODO optimize group with default traits first.
+  @Test public void selectFilterOrderByNonIndexedColumn() throws Exception {
+    String sql = "select \"id\", \"age\", \"name\" from emps "
+        + "where \"name\" = 'Leonhard Euler' order by \"name\"";
+    String logicalPlan = ""
+        + "LogicalSort(sort0=[$2], dir0=[ASC])\n"
+        + "  LogicalProject(id=[$0], age=[$1], name=[$2])\n"
+        + "    LogicalFilter(condition=[=($2, 'Leonhard Euler')])\n"
+        + "      LogicalTableScan(table=[[PUBLIC, EMPS]])\n";
+    String physicalPlan = ""
+        + "CascadesTestExchange(distribution=[single])\n"
+        + "  CascadesTestSort(sort0=[$2], dir0=[ASC])\n"
+        + "    CascadesTestProject(id=[$0], age=[$1], name=[$2])\n"
+        + "      CascadesTestFilter(condition=[=($2, 'Leonhard Euler')])\n"
+        + "        CascadesTestTableScan(table=[[PUBLIC, EMPS]], sort=[[]])\n";
 
     checkPlan(sql, logicalPlan, physicalPlan);
   }

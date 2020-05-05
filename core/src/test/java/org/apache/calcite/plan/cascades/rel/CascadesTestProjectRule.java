@@ -57,10 +57,9 @@ public class CascadesTestProjectRule extends ImplementationRule<LogicalProject> 
   public static RelTraitSet convertTraits(Project project, RelTraitSet traits) {
     Mappings.TargetMapping mapping = project.getMapping();
 
-    // TODO fix mappings for traits.
     if (mapping == null) {
       // Clear traits if no mapping possible.
-      traits = traits.plus(RelCollationTraitDef.INSTANCE.getDefault())
+      traits = traits/*.plus(RelCollationTraitDef.INSTANCE.getDefault())*/
           .plus(RelDistributionTraitDef.INSTANCE.getDefault());
     } else {
       traits = traits.apply(mapping.inverse())

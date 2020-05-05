@@ -19,16 +19,15 @@ package org.apache.calcite.plan.cascades.rel;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.cascades.CascadesTestUtils;
-import org.apache.calcite.plan.cascades.RelSubGroup;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.convert.TraitsEnforcementRule;
 import org.apache.calcite.rel.logical.LogicalSort;
 
 /**
  *
  */
-public class CascadesTestSortRule extends ConverterRule {
+public class CascadesTestSortRule extends TraitsEnforcementRule {
   public static final CascadesTestSortRule CASCADES_SORT_RULE =
       new CascadesTestSortRule();
 

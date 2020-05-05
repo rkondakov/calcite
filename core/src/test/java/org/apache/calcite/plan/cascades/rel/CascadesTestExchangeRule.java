@@ -21,13 +21,13 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.cascades.CascadesTestUtils;
 import org.apache.calcite.rel.RelDistributions;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.convert.TraitsEnforcementRule;
 import org.apache.calcite.rel.logical.LogicalExchange;
 
 /**
  *
  */
-public class CascadesTestExchangeRule extends ConverterRule {
+public class CascadesTestExchangeRule extends TraitsEnforcementRule {
   public static final CascadesTestExchangeRule CASCADES_EXCHANGE_RULE =
       new CascadesTestExchangeRule();
 

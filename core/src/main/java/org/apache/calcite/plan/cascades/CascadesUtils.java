@@ -48,6 +48,17 @@ public class CascadesUtils {
     return result;
   }
 
+  public static RelTraitSet difference(RelTraitSet originalTraits,
+      RelTraitSet traits) {
+    RelTraitSet result = RelTraitSet.createEmpty();
+    for (RelTrait trait : traits) {
+      if (!originalTraits.getTrait(trait.getTraitDef()).satisfies(trait)) {
+        result = result.plus(trait);
+      }
+    }
+    return result;
+  }
+
   public static RelTraitSet toDefaultTraits(RelTraitSet traits) {
     RelTraitSet result = RelTraitSet.createEmpty();
     for (RelTrait trait : traits) {

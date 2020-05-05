@@ -22,6 +22,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.cascades.CascadesRuleCall;
 import org.apache.calcite.plan.cascades.CascadesTestUtils;
 import org.apache.calcite.plan.cascades.ImplementationRule;
+import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -43,7 +44,9 @@ public class CascadesTestFilterRule extends ImplementationRule<LogicalFilter> {
   @Override public void implement(LogicalFilter rel, RelTraitSet requestedTraits,
       CascadesRuleCall call) {
     RelNode input = rel.getInput();
-    input = convert(input, requestedTraits);  // Filter does not change traits.
+    // Pull distribution from child
+    requestedTraits = requestedTraits.plus(RelDistributionTraitDef.INSTANCE.getDefault());
+    input = convert(input, requestedTraits);
     CascadesTestFilter filter =
         new CascadesTestFilter(rel.getCluster(), requestedTraits, input, rel.getCondition());
     call.transformTo(filter);

@@ -20,6 +20,7 @@ import org.apache.calcite.adapter.enumerable.EnumerableConvention;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.convert.TraitsEnforcementRule;
 import org.apache.calcite.tools.RelBuilderFactory;
 
 import java.util.function.Predicate;
@@ -29,7 +30,7 @@ import java.util.function.Predicate;
  * {@link JdbcConvention} to
  * {@link EnumerableConvention}.
  */
-public class JdbcToEnumerableConverterRule extends ConverterRule {
+public class JdbcToEnumerableConverterRule extends TraitsEnforcementRule {
   /** Creates a JdbcToEnumerableConverterRule. */
   public JdbcToEnumerableConverterRule(JdbcConvention out,
       RelBuilderFactory relBuilderFactory) {
@@ -41,5 +42,9 @@ public class JdbcToEnumerableConverterRule extends ConverterRule {
   @Override public RelNode convert(RelNode rel) {
     RelTraitSet newTraitSet = rel.getTraitSet().replace(getOutTrait());
     return new JdbcToEnumerableConverter(rel.getCluster(), newTraitSet, rel);
+  }
+
+  @Override public boolean isGuaranteed() {
+    return true;
   }
 }

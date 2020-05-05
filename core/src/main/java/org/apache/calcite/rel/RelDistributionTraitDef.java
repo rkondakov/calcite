@@ -19,6 +19,7 @@ package org.apache.calcite.rel;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.cascades.CascadesPlanner;
 import org.apache.calcite.rel.core.Exchange;
 import org.apache.calcite.rel.logical.LogicalExchange;
 
@@ -59,7 +60,7 @@ public class RelDistributionTraitDef extends RelTraitDef<RelDistribution> {
     // convention)
     final Exchange exchange = LogicalExchange.create(rel, toDistribution);
 
-    if (planner == null) {
+    if (planner instanceof CascadesPlanner) {
       return exchange;
     }
 
