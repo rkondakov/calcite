@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.plan.cascades;
 
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
@@ -100,6 +102,10 @@ public class RelGroup {
   }
 
   RelSubGroup getOrCreateSubGroup(RelOptCluster cluster, RelTraitSet traits) {
+    if (traits.getTrait(ConventionTraitDef.INSTANCE) == Convention.NONE) {
+      traits = cluster.getPlanner().emptyTraitSet();
+    }
+
     RelSubGroup subGroup = getSubGroup(traits);
     if (subGroup != null) {
       return subGroup;

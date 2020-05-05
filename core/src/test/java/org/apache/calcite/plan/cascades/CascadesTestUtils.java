@@ -79,12 +79,12 @@ public class CascadesTestUtils {
       };
 
   public static final Collection<RelOptRule> LOGICAL_RULES = ImmutableList.<RelOptRule>builder()
-      .add(
-          new FilterProjectTransposeRule(LogicalFilter.class, LogicalProject.class, true, true,
-          LOGICAL_BUILDER))
-      .add(ProjectFilterTransposeRule.INSTANCE)
-      .add(new JoinAssociateRule(LogicalJoin.class, LOGICAL_BUILDER))
-      .add(JoinCommuteRule.INSTANCE)
+//      .add(
+//          new FilterProjectTransposeRule(LogicalFilter.class, LogicalProject.class, true, true,
+//          LOGICAL_BUILDER))
+//      .add(ProjectFilterTransposeRule.INSTANCE)
+//     // .add(new JoinAssociateRule(LogicalJoin.class, LOGICAL_BUILDER))
+//      .add(JoinCommuteRule.INSTANCE)
       .addAll(BASE_RULES)
       .addAll(ABSTRACT_RULES)
       .addAll(ABSTRACT_RELATIONAL_RULES)

@@ -16,11 +16,6 @@
  */
 package org.apache.calcite.plan.cascades;
 
-import com.google.common.collect.LinkedListMultimap;
-import com.google.common.collect.Multimap;
-
-import java.util.Collection;
-
 import org.apache.calcite.config.CalciteSystemProperty;
 import org.apache.calcite.plan.AbstractRelOptPlanner;
 import org.apache.calcite.plan.Context;
@@ -29,9 +24,7 @@ import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
@@ -40,20 +33,25 @@ import org.apache.calcite.rel.convert.Converter;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.rel.logical.LogicalExchange;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.Litmus;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.PartiallyOrderedSet;
 import org.apache.calcite.util.Util;
 
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -206,6 +204,11 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
         return sg;
       }
       rel = input;
+    } else if (rel instanceof LogicalProject) {
+      LogicalProject project = (LogicalProject)rel;
+       if (ProjectRemoveRule.isTrivial(project)) {
+         rel = project.getInput();
+       }
     } else if (isLogical(rel) && !rel.getTraitSet().equals(emptyTraitSet())) {
       rel = rel.copy(emptyTraitSet(), rel.getInputs());
     }
