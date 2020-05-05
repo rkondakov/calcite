@@ -186,13 +186,27 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
 
     // Do not register Sort and other converters because all trait
     // conversions will be added during optimization
-    if (rel instanceof LogicalSort) { // TODO mark sort/exchange with Enforcer interface
-      rel = ((LogicalSort) rel).getInput();
+    // TODO more solid trait converters handling.
+    if (rel instanceof LogicalSort) {
+      LogicalSort sort = (LogicalSort)rel;
+        if (sort.fetch == null && sort.offset == null) {
+          RelNode input = sort.getInput();
+          RelSubGroup sg = getSubGroup(input);
+          if (sg != null) {
+            return sg;
+          }
+          rel = input;
+        } else {
+          rel = rel.copy(emptyTraitSet().plus(sort.getCollation()), rel.getInputs());
+        }
     } else if (rel instanceof LogicalExchange) {
-      rel = ((LogicalExchange) rel).getInput();
-    }
-
-    if (isLogical(rel) && !rel.getTraitSet().equals(emptyTraitSet())) {
+      RelNode input = ((LogicalExchange) rel).getInput();
+      RelSubGroup sg = getSubGroup(input);
+      if (sg != null) {
+        return sg;
+      }
+      rel = input;
+    } else if (isLogical(rel) && !rel.getTraitSet().equals(emptyTraitSet())) {
       rel = rel.copy(emptyTraitSet(), rel.getInputs());
     }
 

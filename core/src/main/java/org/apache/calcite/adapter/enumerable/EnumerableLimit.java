@@ -22,6 +22,7 @@ import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.linq4j.tree.Expressions;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
@@ -38,7 +39,7 @@ import org.apache.calcite.util.BuiltInMethod;
 import java.util.List;
 
 /** Relational expression that applies a limit and/or offset to its input. */
-public class EnumerableLimit extends SingleRel implements EnumerableRel {
+public class EnumerableLimit extends SingleRel implements EnumerableRel, PhysicalNode {
   public final RexNode offset;
   public final RexNode fetch;
 
@@ -136,5 +137,10 @@ public class EnumerableLimit extends SingleRel implements EnumerableRel {
     } else {
       return Expressions.constant(RexLiteral.intValue(offset));
     }
+  }
+
+  @Override public PhysicalNode withNewInputs(List<RelNode> newInputs) {
+    RelNode input = newInputs.get(0);
+    return copy(input.getTraitSet(), newInputs);
   }
 }

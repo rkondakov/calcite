@@ -16,8 +16,11 @@
  */
 package org.apache.calcite.adapter.enumerable;
 
+import java.util.List;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
@@ -31,7 +34,7 @@ import org.apache.calcite.rex.RexNode;
  * {@link org.apache.calcite.adapter.enumerable.EnumerableConvention enumerable calling convention}. */
 public class EnumerableFilter
     extends Filter
-    implements EnumerableRel {
+    implements EnumerableRel, PhysicalNode {
   /** Creates an EnumerableFilter.
    *
    * <p>Use {@link #create} unless you know what you're doing. */
@@ -67,5 +70,11 @@ public class EnumerableFilter
   public Result implement(EnumerableRelImplementor implementor, Prefer pref) {
     // EnumerableCalc is always better
     throw new UnsupportedOperationException();
+  }
+
+  @Override public PhysicalNode withNewInputs(List<RelNode> newInputs) {
+    RelNode input = newInputs.get(0);
+    // Filter preserves children's convention.
+    return copy(input.getTraitSet(), input, condition);
   }
 }
