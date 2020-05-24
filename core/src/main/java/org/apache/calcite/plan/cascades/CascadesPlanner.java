@@ -154,6 +154,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     RelNode bestExp = root.buildCheapestPlan(this);
 
     if (LOGGER.isTraceEnabled()) {
+      printPlannerStateToLog();
       LOGGER.trace("Best rel: " +  RelOptUtil.toString(bestExp, ALL_ATTRIBUTES));
     }
 
@@ -206,11 +207,6 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
         return sg;
       }
       rel = input;
-    } else if (rel instanceof LogicalProject) {
-      LogicalProject project = (LogicalProject)rel;
-       if (ProjectRemoveRule.isTrivial(project)) {
-         rel = project.getInput();
-       }
     } else if (isLogical(rel) && !rel.getTraitSet().equals(emptyTraitSet())) {
       rel = rel.copy(emptyTraitSet(), rel.getInputs());
     }
@@ -229,7 +225,7 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
         checkSameType(rel, equivExp);
         RelGroup equivGroup = getGroup(equivExp);
         if (equivGroup != null) {
-          return registerSubGroup(getSubGroup(equivExp), equivGroup);
+          return registerSubGroup(getSubGroup(equivExp), group);
         }
       }
     }
@@ -259,7 +255,9 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
   }
 
   private RelSubGroup registerSubGroup(RelSubGroup rel, RelGroup group) {
-    // TODO merge groups
+    if (group != null && rel.getGroup() != group) {
+      System.out.println("Merge"); // TODO merge groups
+    }
     return rel;
   }
 
@@ -318,9 +316,9 @@ public class CascadesPlanner extends AbstractRelOptPlanner {
     if (subGroup != null) {
       if (equivRel != null) {
         final RelSubGroup equivSubset = getSubGroup(equivRel);
-//        if (subGroup.set != equivSubset.set) { TODO merge??
-//          merge(equivSubset.set, subGroup.set);
-//        }
+        if (subGroup.getGroup() != equivSubset.getGroup()) {
+          System.out.println("merge"); //TODO merge??
+        }
       }
       result = subGroup;
     } else {

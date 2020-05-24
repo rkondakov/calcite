@@ -136,7 +136,7 @@ public class RelGroup {
   }
 
   public Set<RelNode> getRels() {
-    Set<RelNode> allRels = new HashSet<>(physicalRels.size() + logicalRels.size());
+    Set<RelNode> allRels = new LinkedHashSet<>(physicalRels.size() + logicalRels.size());
     allRels.addAll(physicalRels);
     allRels.addAll(logicalRels);
     return allRels;

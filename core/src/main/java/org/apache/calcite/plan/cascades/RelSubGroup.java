@@ -23,7 +23,6 @@ import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.rel.AbstractRelNode;
-import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.externalize.RelWriterImpl;
@@ -37,6 +36,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -123,7 +123,7 @@ public class RelSubGroup extends AbstractRelNode {
 
   public Set<RelNode> getRels() {
     Set<RelNode> all = isLogical(this) ? group.logicalRels() : group.physicalRels();
-    Set<RelNode> rels = new HashSet<>(all.size());
+    Set<RelNode> rels = new LinkedHashSet<>(all.size());
     for (RelNode relNode : all) {
       if (relNode.getTraitSet().satisfies(traitSet)) {
         rels.add(relNode);

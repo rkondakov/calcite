@@ -18,7 +18,7 @@ package org.apache.calcite.adapter.enumerable;
 
 import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.convert.TraitsEnforcementRule;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.tools.RelBuilderFactory;
 
@@ -29,7 +29,7 @@ import java.util.function.Predicate;
  * to {@link org.apache.calcite.adapter.enumerable.EnumerableRel} by creating
  * an {@link org.apache.calcite.adapter.enumerable.EnumerableInterpreter}.
  */
-public class EnumerableInterpreterRule extends ConverterRule {
+public class EnumerableInterpreterRule extends TraitsEnforcementRule {
   public static final EnumerableInterpreterRule INSTANCE =
       new EnumerableInterpreterRule(RelFactories.LOGICAL_BUILDER);
 
@@ -48,5 +48,9 @@ public class EnumerableInterpreterRule extends ConverterRule {
 
   @Override public RelNode convert(RelNode rel) {
     return EnumerableInterpreter.create(rel, 0.5d);
+  }
+
+  @Override public boolean isGuaranteed() {
+    return true;
   }
 }

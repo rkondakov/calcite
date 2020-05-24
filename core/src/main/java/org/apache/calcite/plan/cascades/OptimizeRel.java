@@ -16,14 +16,13 @@
  */
 package org.apache.calcite.plan.cascades;
 
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -65,17 +64,19 @@ class OptimizeRel extends CascadesTask {
       rules.addAll(physRules);
     }
 
+    Set<RelGroup> groupsToExpand = new LinkedHashSet<>();
+
     for (RelOptRule rule : rules) {
-      planner.submitTask(new ApplyRule(this, rel, rule));
+      planner.submitTask(new ApplyRule(this, rel, rule, explore));
       // Expand input groups.
-      Set<RelGroup> groupsToExpand = new HashSet<>();
+
       RelOptRuleOperand topOperand = rule.getOperand();
-      RelNode topRel = rel;
-      gatherGroupsToExpand(topOperand, topRel, groupsToExpand);
-      for (RelGroup group : groupsToExpand) {
-        if (!group.isExpanded()) {
-          planner.submitTask(new ExpandGroup(this, group));
-        }
+      gatherGroupsToExpand(topOperand, rel, groupsToExpand);
+    }
+
+    for (RelGroup group : groupsToExpand) {
+      if (!group.isExpanded()) {
+        planner.submitTask(new ExpandGroup(this, group));
       }
     }
   }

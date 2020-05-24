@@ -42,14 +42,16 @@ import static java.util.Collections.singletonList;
 public class ApplyRule extends CascadesTask {
   private final RelNode topRel;
   private final RelOptRule rule;
+  private final boolean explore;
 
-  public ApplyRule(CascadesTask parentTask, RelNode rel, RelOptRule rule) {
+  public ApplyRule(CascadesTask parentTask, RelNode rel, RelOptRule rule, boolean explore) {
     super(parentTask);
     assert rule != null;
     assert rel != null;
     assert isLogical(rel);
     this.topRel = rel;
     this.rule = rule;
+    this.explore = explore;
   }
 
   @Override public void perform() {
@@ -80,7 +82,7 @@ public class ApplyRule extends CascadesTask {
           }
 
           OptimizeRel task =
-              new OptimizeRel(this, convertedRel.getTraitSet(), convertedRel, false);
+              new OptimizeRel(this, convertedRel.getTraitSet(), convertedRel, explore);
           planner.submitTask(task);
         } else {
           // TODO upper bound
@@ -103,6 +105,8 @@ public class ApplyRule extends CascadesTask {
         .append(rule)
         .append(", rel=")
         .append(topRel)
+        .append(", explore=")
+        .append(explore)
         .append('}');
   }
 
