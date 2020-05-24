@@ -85,6 +85,7 @@ public class ApplyRule extends CascadesTask {
               new OptimizeRel(this, convertedRel.getTraitSet(), convertedRel, explore);
           planner.submitTask(task);
         } else {
+          assert !explore : "rule=" + rule + ", rel=" + topRel;
           // TODO upper bound
           OptimizeInputs task = new OptimizeInputs(this, convertedRel.getTraitSet(), convertedRel,
               planner.getGroup(topRel), Double.POSITIVE_INFINITY);

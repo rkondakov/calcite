@@ -26,6 +26,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.calcite.rel.convert.ConverterRule;
+
 import static org.apache.calcite.plan.RelOptRuleOperandChildPolicy.SOME;
 import static org.apache.calcite.plan.RelOptRuleOperandChildPolicy.UNORDERED;
 import static org.apache.calcite.plan.cascades.CascadesUtils.isLogical;
@@ -67,6 +69,9 @@ class OptimizeRel extends CascadesTask {
     Set<RelGroup> groupsToExpand = new LinkedHashSet<>();
 
     for (RelOptRule rule : rules) {
+      if (explore && rule instanceof ConverterRule) {
+        continue; // Skip physical rules during exploration.
+      }
       planner.submitTask(new ApplyRule(this, rel, rule, explore));
       // Expand input groups.
 

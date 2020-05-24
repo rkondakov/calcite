@@ -16,28 +16,26 @@
  */
 package org.apache.calcite.adapter.enumerable;
 
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.calcite.rel.logical.LogicalSort;
 
 /**
- * Rule to convert an {@link org.apache.calcite.rel.core.Sort} that has
- * {@code offset} or {@code fetch} set to an
- * {@link EnumerableLimit}
- * on top of a "pure" {@code Sort} that has no offset or fetch.
+ * Rule to convert an {@link org.apache.calcite.rel.core.Sort} that has {@code offset} or {@code
+ * fetch} set to an {@link EnumerableLimit} on top of a "pure" {@code Sort} that has no offset or
+ * fetch.
  */
-class EnumerableLimitRule extends RelOptRule {
+class EnumerableLimitRule extends ConverterRule {
   EnumerableLimitRule() {
-    super(
-        operand(Sort.class, any()),
+    super(LogicalSort.class, Convention.NONE, EnumerableConvention.INSTANCE,
         "EnumerableLimitRule");
   }
 
-  @Override public void onMatch(RelOptRuleCall call) {
-    final Sort sort = call.rel(0);
+  @Override public RelNode convert(RelNode rel) {
+    final LogicalSort sort = (LogicalSort)rel;
     if (sort.offset == null && sort.fetch == null) {
-      return;
+      return null;
     }
     RelNode input = sort.getInput();
     if (!sort.getCollation().getFieldCollations().isEmpty()) {
@@ -49,10 +47,10 @@ class EnumerableLimitRule extends RelOptRule {
           null,
           null);
     }
-    call.transformTo(
-        EnumerableLimit.create(
-            convert(input, input.getTraitSet().replace(EnumerableConvention.INSTANCE)),
-            sort.offset,
-            sort.fetch));
+    return EnumerableLimit.create(
+        convert(input, input.getTraitSet().replace(EnumerableConvention.INSTANCE)),
+        sort.offset,
+        sort.fetch);
   }
+
 }

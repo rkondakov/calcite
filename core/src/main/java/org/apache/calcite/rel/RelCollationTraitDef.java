@@ -89,7 +89,7 @@ public class RelCollationTraitDef extends RelTraitDef<RelCollation> {
 
   public boolean canConvert(
       RelOptPlanner planner, RelCollation fromTrait, RelCollation toTrait) {
-    return false;
+    return true;
   }
 
   @Override public boolean canConvert(RelOptPlanner planner,
