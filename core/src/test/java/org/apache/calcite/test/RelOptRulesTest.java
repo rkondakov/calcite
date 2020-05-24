@@ -162,6 +162,7 @@ import org.apache.calcite.tools.RuleSets;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -545,6 +546,84 @@ class RelOptRulesTest extends RelOptTestBase {
 
     HepProgram program = new HepProgramBuilder()
         .addRuleInstance(JoinPushExpressionsRule.INSTANCE)
+        .build();
+
+    HepPlanner hepPlanner = new HepPlanner(program);
+    hepPlanner.setRoot(relNode);
+    RelNode output = hepPlanner.findBestExp();
+
+    final String planAfter = NL + RelOptUtil.toString(output);
+    final DiffRepository diffRepos = getDiffRepos();
+    diffRepos.assertEquals("planAfter", "${planAfter}", planAfter);
+    SqlToRelTestBase.assertValid(output);
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-3979">[CALCITE-3979]
+   * ReduceExpressionsRule might have removed CAST expression(s) incorrectly</a>. */
+  @Test public void testCastRemove() throws Exception {
+    final String sql = "select\n"
+        + "case when cast(ename as double) < 5 then 0.0\n"
+        + "     else coalesce(cast(ename as double), 1.0)\n"
+        + "     end as t\n"
+        + " from (\n"
+        + "       select\n"
+        + "          case when ename > 'abc' then ename\n"
+        + "               else null\n"
+        + "               end as ename from emp\n"
+        + " )";
+    sql(sql).withRule(ReduceExpressionsRule.PROJECT_INSTANCE).checkUnchanged();
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-3887">[CALCITE-3887]
+   * Filter and Join conditions may not need to retain nullability during simplifications</a>. */
+  @Test void testPushSemiJoinConditions() {
+    final RelBuilder relBuilder = RelBuilder.create(RelBuilderTest.config().build());
+    RelNode left = relBuilder.scan("EMP")
+        .project(
+            relBuilder.field("DEPTNO"),
+            relBuilder.field("ENAME"))
+        .build();
+    RelNode right = relBuilder.scan("DEPT")
+        .project(
+            relBuilder.field("DEPTNO"),
+            relBuilder.field("DNAME"))
+        .build();
+
+    relBuilder.push(left).push(right);
+
+    RexInputRef ref1 = relBuilder.field(2, 0, "DEPTNO");
+    RexInputRef ref2 = relBuilder.field(2, 1, "DEPTNO");
+    RexInputRef ref3 = relBuilder.field(2, 0, "ENAME");
+    RexInputRef ref4 = relBuilder.field(2, 1, "DNAME");
+
+    // ref1 IS NOT DISTINCT FROM ref2
+    RexCall cond1 = (RexCall) relBuilder.call(
+        SqlStdOperatorTable.OR,
+        relBuilder.call(SqlStdOperatorTable.EQUALS, ref1, ref2),
+        relBuilder.call(SqlStdOperatorTable.AND,
+            relBuilder.call(SqlStdOperatorTable.IS_NULL, ref1),
+            relBuilder.call(SqlStdOperatorTable.IS_NULL, ref2)));
+
+    // ref3 IS NOT DISTINCT FROM ref4
+    RexCall cond2 = (RexCall) relBuilder.call(
+        SqlStdOperatorTable.OR,
+        relBuilder.call(SqlStdOperatorTable.EQUALS, ref3, ref4),
+        relBuilder.call(SqlStdOperatorTable.AND,
+            relBuilder.call(SqlStdOperatorTable.IS_NULL, ref3),
+            relBuilder.call(SqlStdOperatorTable.IS_NULL, ref4)));
+
+    RexNode cond = relBuilder.call(SqlStdOperatorTable.AND, cond1, cond2);
+    RelNode relNode = relBuilder.semiJoin(cond)
+        .project(relBuilder.field(0))
+        .build();
+
+    HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(JoinPushExpressionsRule.INSTANCE)
+        .addRuleInstance(SemiJoinProjectTransposeRule.INSTANCE)
+        .addRuleInstance(ReduceExpressionsRule.JOIN_INSTANCE)
+        .addRuleInstance(ReduceExpressionsRule.FILTER_INSTANCE)
         .build();
 
     HepPlanner hepPlanner = new HepPlanner(program);
@@ -3369,11 +3448,36 @@ class RelOptRulesTest extends RelOptTestBase {
   @Test void testEmptySort() {
     HepProgram program = new HepProgramBuilder()
         .addRuleInstance(ReduceExpressionsRule.FILTER_INSTANCE)
+        .addRuleInstance(PruneEmptyRules.PROJECT_INSTANCE)
         .addRuleInstance(PruneEmptyRules.SORT_INSTANCE)
         .build();
 
     final String sql = "select * from emp where false order by deptno";
     sql(sql).with(program).check();
+  }
+
+  @Test void testEmptySort2() {
+    final RelBuilder relBuilder = RelBuilder.create(RelBuilderTest.config().build());
+    final RelNode relNode = relBuilder
+        .scan("DEPT").empty()
+        .sort(
+            relBuilder.field("DNAME"),
+            relBuilder.field("DEPTNO"))
+        .build();
+
+    final HepProgram program = new HepProgramBuilder()
+        .addRuleInstance(PruneEmptyRules.SORT_INSTANCE)
+        .build();
+
+    final HepPlanner hepPlanner = new HepPlanner(program);
+    hepPlanner.setRoot(relNode);
+    final RelNode output = hepPlanner.findBestExp();
+
+    final String planBefore = NL + RelOptUtil.toString(relNode);
+    final String planAfter = NL + RelOptUtil.toString(output);
+    final DiffRepository diffRepos = getDiffRepos();
+    diffRepos.assertEquals("planBefore", "${planBefore}", planBefore);
+    diffRepos.assertEquals("planAfter", "${planAfter}", planAfter);
   }
 
   @Test void testEmptySortLimitZero() {
@@ -6512,6 +6616,29 @@ class RelOptRulesTest extends RelOptTestBase {
         + "ON t1.deptno = t2.deptno "
         + "WHERE t1.ename is not distinct from t2.ename";
     sql(query).withRule(FilterJoinRule.FILTER_ON_JOIN).check();
+  }
+
+  /** Test case for
+   * <a href="https://issues.apache.org/jira/browse/CALCITE-3997">[CALCITE-3997]
+   * Logical rules applied on physical operator but failed handle traits</a>
+   */
+  @Test void testMergeJoinCollation() {
+    final String sql = "select r.ename, s.sal from\n"
+        + "sales.emp r join sales.bonus s\n"
+        + "on r.ename=s.ename where r.sal+1=s.sal";
+    sql(sql, false).check();
+  }
+
+  Sql sql(String sql, boolean topDown) {
+    VolcanoPlanner planner = new VolcanoPlanner();
+    planner.setTopDownOpt(topDown);
+    planner.addRelTraitDef(ConventionTraitDef.INSTANCE);
+    planner.addRelTraitDef(RelCollationTraitDef.INSTANCE);
+    RelOptUtil.registerDefaultRules(planner, false, false);
+    Tester tester = createTester().withDecorrelation(true)
+        .withClusterFactory(cluster -> RelOptCluster.create(planner, cluster.getRexBuilder()));
+    return new Sql(tester, sql, null, planner,
+        ImmutableMap.of(), ImmutableList.of());
   }
 
   /**

@@ -23,10 +23,13 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.Converter;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.core.Spool;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.trace.CalciteTrace;
 
 import com.google.common.collect.ImmutableList;
@@ -71,6 +74,23 @@ class RelSet {
    */
   RelSet equivalentSet;
   RelNode rel;
+
+  /**
+   * The position indicator of rel node that is to be processed.
+   */
+  private int relCursor = 0;
+
+  /**
+   * The relnodes after applying logical rules and physical rules,
+   * before trait propagation and enforcement.
+   */
+  final Set<RelNode> seeds = new HashSet<>();
+
+  /**
+   * Records conversions / enforcements that have happened on the
+   * pair of derived and required traitset.
+   */
+  final Set<Pair<RelTraitSet, RelTraitSet>> conversions = new HashSet<>();
 
   /**
    * Variables that are set by relational expressions in this set
@@ -146,6 +166,32 @@ class RelSet {
     return null;
   }
 
+  public int getSeedSize() {
+    if (seeds.isEmpty()) {
+      seeds.addAll(rels);
+    }
+    return seeds.size();
+  }
+
+  public boolean hasNextPhysicalNode() {
+    while (relCursor < rels.size()) {
+      RelNode node = rels.get(relCursor);
+      if (node instanceof PhysicalNode
+          && node.getConvention() != Convention.NONE) {
+        // enforcer may be manually created for some reason
+        if (relCursor < getSeedSize() || !node.isEnforcer()) {
+          return true;
+        }
+      }
+      relCursor++;
+    }
+    return false;
+  }
+
+  public RelNode nextPhysicalNode() {
+    return rels.get(relCursor++);
+  }
+
   /**
    * Removes all references to a specific {@link RelNode} in both the subsets
    * and their parent relationships.
@@ -169,14 +215,15 @@ class RelSet {
   }
 
   /**
-   * If the subset is required, convert derived subsets to this subset.
+   * If the subset is required, convert delivered subsets to this subset.
    * Otherwise, convert this subset to required subsets in this RelSet.
-   * The subset can be both required and derived.
+   * The subset can be both required and delivered.
    */
-  private void addAbstractConverters(
-      RelOptCluster cluster, RelSubset subset, boolean required) {
+  void addConverters(RelSubset subset, boolean required,
+      boolean useAbstractConverter) {
+    RelOptCluster cluster = subset.getCluster();
     List<RelSubset> others = subsets.stream().filter(
-        n -> required ? n.isDerived() : n.isRequired())
+        n -> required ? n.isDelivered() : n.isRequired())
         .collect(Collectors.toList());
 
     for (RelSubset other : others) {
@@ -189,9 +236,13 @@ class RelSet {
         to = subset;
       }
 
-      if (from == to || !from.getConvention()
-          .useAbstractConvertersForConversion(
+      if (from == to || useAbstractConverter
+          && !from.getConvention().useAbstractConvertersForConversion(
               from.getTraitSet(), to.getTraitSet())) {
+        continue;
+      }
+
+      if (!conversions.add(Pair.of(from.getTraitSet(), to.getTraitSet()))) {
         continue;
       }
 
@@ -216,9 +267,17 @@ class RelSet {
       }
 
       if (needsConverter) {
-        final AbstractConverter converter =
-            new AbstractConverter(cluster, from, null, to.getTraitSet());
-        cluster.getPlanner().register(converter, to);
+        final RelNode enforcer;
+        if (useAbstractConverter) {
+          enforcer = new AbstractConverter(
+              cluster, from, null, to.getTraitSet());
+        } else {
+          enforcer = subset.getConvention().enforce(from, to.getTraitSet());
+        }
+
+        if (enforcer != null) {
+          cluster.getPlanner().register(enforcer, to);
+        }
       }
     }
   }
@@ -230,6 +289,7 @@ class RelSet {
   RelSubset getOrCreateSubset(
       RelOptCluster cluster, RelTraitSet traits, boolean required) {
     boolean needsConverter = false;
+    final VolcanoPlanner planner = (VolcanoPlanner) cluster.getPlanner();
     RelSubset subset = getSubset(traits);
 
     if (subset == null) {
@@ -241,12 +301,11 @@ class RelSet {
       // register() the planner will try to add this subset again.
       subsets.add(subset);
 
-      final VolcanoPlanner planner = (VolcanoPlanner) cluster.getPlanner();
       if (planner.getListener() != null) {
         postEquivalenceEvent(planner, subset);
       }
     } else if ((required && !subset.isRequired())
-        || (!required && !subset.isDerived())) {
+        || (!required && !subset.isDelivered())) {
       needsConverter = true;
     }
 
@@ -255,11 +314,11 @@ class RelSet {
     } else if (required) {
       subset.setRequired();
     } else {
-      subset.setDerived();
+      subset.setDelivered();
     }
 
-    if (needsConverter) {
-      addAbstractConverters(cluster, subset, required);
+    if (needsConverter && !planner.topDownOpt) {
+      addConverters(subset, required, true);
     }
 
     return subset;
@@ -342,12 +401,12 @@ class RelSet {
       RelSubset subset = null;
       RelTraitSet otherTraits = otherSubset.getTraitSet();
 
-      // If it is logical or derived physical traitSet
-      if (otherSubset.isDerived() || !otherSubset.isRequired()) {
+      // If it is logical or delivered physical traitSet
+      if (otherSubset.isDelivered() || !otherSubset.isRequired()) {
         subset = getOrCreateSubset(cluster, otherTraits, false);
       }
 
-      // It may be required only, or both derived and required,
+      // It may be required only, or both delivered and required,
       // in which case, register again.
       if (otherSubset.isRequired()) {
         subset = getOrCreateSubset(cluster, otherTraits, true);
@@ -361,26 +420,19 @@ class RelSet {
 
     Set<RelNode> parentRels = new HashSet<>(parents);
     for (RelNode otherRel : otherSet.rels) {
-      if (planner.prunedNodes.contains(otherRel)) {
-        continue;
-      }
-
-      boolean pruned = false;
-      if (parentRels.contains(otherRel)) {
-        // if otherRel is a enforcing operator e.g.
-        // Sort, Exchange, do not prune it.
+      if (!(otherRel instanceof Spool)
+          && !otherRel.isEnforcer()
+          && parentRels.contains(otherRel)) {
+        // If otherRel is a enforcing operator e.g.
+        // Sort, Exchange, do not prune it. Just in
+        // case it is not marked as an enforcer.
         if (otherRel.getInputs().size() != 1
             || otherRel.getInput(0).getTraitSet()
                 .satisfies(otherRel.getTraitSet())) {
-          pruned = true;
+          planner.prune(otherRel);
         }
       }
-
-      if (pruned) {
-        planner.prune(otherRel);
-      } else {
-        planner.reregister(this, otherRel);
-      }
+      planner.reregister(this, otherRel);
     }
 
     // Has another set merged with this?

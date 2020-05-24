@@ -48,7 +48,7 @@ import java.util.List;
  * by splitting the projection into a projection on top of each child of
  * the join.
  */
-public class ProjectJoinTransposeRule extends RelOptRule {
+public class ProjectJoinTransposeRule extends RelOptRule implements TransformationRule {
   /**
    * A instance for ProjectJoinTransposeRule that pushes a
    * {@link org.apache.calcite.rel.logical.LogicalProject}
@@ -173,11 +173,12 @@ public class ProjectJoinTransposeRule extends RelOptRule {
         final List<RelFieldCollation> fieldCollations = collation.getFieldCollations();
         for (RelFieldCollation relFieldCollation: fieldCollations) {
           final int fieldIndex = relFieldCollation.getFieldIndex();
-          if (fieldIndex < originLeftCnt) {
-            fc.add(RexUtil.apply(leftMapping, relFieldCollation));
-          } else {
-            fc.add(RexUtil.apply(rightMapping, relFieldCollation));
+          Mappings.TargetMapping mapping = fieldIndex < originLeftCnt ? leftMapping : rightMapping;
+          RelFieldCollation newFieldCollation = RexUtil.apply(mapping, relFieldCollation);
+          if (newFieldCollation == null) {
+            break;
           }
+          fc.add(newFieldCollation);
         }
         newCollations.add(RelCollations.of(fc));
       }

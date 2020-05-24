@@ -37,6 +37,7 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.PhysicalNode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.Converter;
 import org.apache.calcite.rel.convert.ConverterRule;
@@ -46,6 +47,7 @@ import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.SqlExplainLevel;
@@ -180,6 +182,21 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
    * {@link org.apache.calcite.plan.volcano.VolcanoCost}. */
   private final RelOptCost zeroCost;
 
+  /**
+   * Optimization tasks including trait propagation, enforcement.
+   */
+  final Deque<OptimizeTask> tasks = new ArrayDeque<>();
+
+  /**
+   * The id generator for optimization tasks.
+   */
+  int nextTaskId = 0;
+
+  /**
+   * Whether to enable top-down optimization or not.
+   */
+  boolean topDownOpt = CalciteSystemProperty.TOPDOWN_OPT.value();
+
   //~ Constructors -----------------------------------------------------------
 
   /**
@@ -223,6 +240,16 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
       phaseRuleMap.get(VolcanoPlannerPhase.PRE_PROCESS).add("xxx");
       phaseRuleMap.get(VolcanoPlannerPhase.CLEANUP).add("xxx");
     };
+  }
+
+  /**
+   * Enable or disable top-down optimization.
+   *
+   * <p>Note: Enabling top-down optimization will automatically disable
+   * the use of AbstractConverter and related rules.</p>
+   */
+  public void setTopDownOpt(boolean value) {
+    topDownOpt = value;
   }
 
   // implement RelOptPlanner
@@ -385,6 +412,10 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     for (RelOptRuleOperand operand : rule.getOperands()) {
       for (Class<? extends RelNode> subClass
           : subClasses(operand.getMatchedClass())) {
+        if (PhysicalNode.class.isAssignableFrom(subClass)
+            && rule instanceof TransformationRule) {
+          continue;
+        }
         classOperands.put(subClass, operand);
       }
     }
@@ -431,10 +462,14 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
   @Override protected void onNewClass(RelNode node) {
     super.onNewClass(node);
 
+    final boolean isPhysical = node instanceof PhysicalNode;
     // Create mappings so that instances of this class will match existing
     // operands.
     final Class<? extends RelNode> clazz = node.getClass();
     for (RelOptRule rule : mapDescToRule.values()) {
+      if (isPhysical && rule instanceof TransformationRule) {
+        continue;
+      }
       for (RelOptRuleOperand operand : rule.getOperands()) {
         if (operand.getMatchedClass().isAssignableFrom(clazz)) {
           classOperands.put(clazz, operand);
@@ -505,6 +540,20 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
 
       ruleQueue.phaseCompleted(phase);
     }
+
+    if (topDownOpt) {
+      tasks.push(OptimizeTask.create(root));
+      while (!tasks.isEmpty()) {
+        OptimizeTask task = tasks.peek();
+        if (task.hasSubTask()) {
+          tasks.push(task.nextSubTask());
+          continue;
+        }
+        task = tasks.pop();
+        task.execute();
+      }
+    }
+
     if (LOGGER.isTraceEnabled()) {
       StringWriter sw = new StringWriter();
       final PrintWriter pw = new PrintWriter(sw);
@@ -746,6 +795,11 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     return set.getSubset(traits);
   }
 
+  boolean isSeedNode(RelNode node) {
+    final RelSet set = getSubset(node).set;
+    return set.seeds.contains(node);
+  }
+
   RelNode changeTraitsUsingConverters(
       RelNode rel,
       RelTraitSet toTraits) {
@@ -881,6 +935,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
             rel.getId(), equivRel.getId());
 
         mapDigestToRel.put(key, equivRel);
+        checkPruned(equivRel, rel);
 
         RelSubset equivRelSubset = getSubset(equivRel);
 
@@ -940,11 +995,24 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
       assert equivRel.getClass() == rel.getClass();
       assert equivRel.getTraitSet().equals(rel.getTraitSet());
 
+      checkPruned(equivRel, rel);
       return;
     }
 
     // Add the relational expression into the correct set and subset.
-    addRelToSet(rel, set);
+    if (!prunedNodes.contains(rel)) {
+      addRelToSet(rel, set);
+    }
+  }
+
+  /**
+   * Prune rel node if the latter one (identical with rel node)
+   * is already pruned.
+   */
+  private void checkPruned(RelNode rel, RelNode duplicateRel) {
+    if (prunedNodes.contains(duplicateRel)) {
+      prunedNodes.add(rel);
+    }
   }
 
   /**
@@ -1144,6 +1212,8 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
           "left", equivExp.getRowType(),
           "right", rel.getRowType(),
           Litmus.THROW);
+      checkPruned(equivExp, rel);
+
       RelSet equivSet = getSet(equivExp);
       if (equivSet != null) {
         LOGGER.trace(
@@ -1232,7 +1302,8 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     fireRules(rel);
 
     // It's a new subset.
-    if (set.subsets.size() > subsetBeforeCount) {
+    if (set.subsets.size() > subsetBeforeCount
+        || subset.triggerRule) {
       fireRules(subset);
     }
 

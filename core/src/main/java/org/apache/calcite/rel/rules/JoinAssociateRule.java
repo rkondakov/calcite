@@ -47,7 +47,7 @@ import java.util.List;
  *
  * @see JoinCommuteRule
  */
-public class JoinAssociateRule extends RelOptRule {
+public class JoinAssociateRule extends RelOptRule implements TransformationRule {
   //~ Static fields/initializers ---------------------------------------------
 
   /** The singleton. */

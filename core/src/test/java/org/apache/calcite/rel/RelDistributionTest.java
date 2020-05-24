@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.calcite.rel.RelDistributions.RANDOM_DISTRIBUTED;
+import static org.apache.calcite.rel.RelDistributions.ANY;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -55,31 +56,40 @@ class RelDistributionTest {
   }
 
   @Test void testRelDistributionMapping() {
+    final int n = 10; // Mapping source count.
+
     // hash[0]
     RelDistribution hash0 = hash(0);
-    assertThat(hash0.apply(mapping(0)), is(hash0));
-    assertThat(hash0.apply(mapping(1)), is(RANDOM_DISTRIBUTED));
-    assertThat(hash0.apply(mapping(2, 1, 0)), is(hash(2)));
+    assertThat(hash0.apply(mapping(n, 0)), is(hash0));
+    assertThat(hash0.apply(mapping(n, 1)), is(ANY));
+    assertThat(hash0.apply(mapping(n, 2, 1, 0)), is(hash(2)));
 
     // hash[0,1]
     RelDistribution hash01 = hash(0, 1);
-    assertThat(hash01.apply(mapping(0)), is(RANDOM_DISTRIBUTED));
-    assertThat(hash01.apply(mapping(1)), is(RANDOM_DISTRIBUTED));
-    assertThat(hash01.apply(mapping(0, 1)), is(hash01));
-    assertThat(hash01.apply(mapping(1, 2)), is(RANDOM_DISTRIBUTED));
-    assertThat(hash01.apply(mapping(1, 0)), is(hash01));
-    assertThat(hash01.apply(mapping(2, 1, 0)), is(hash(2, 1)));
+    assertThat(hash01.apply(mapping(n, 0)), is(ANY));
+    assertThat(hash01.apply(mapping(n, 1)), is(ANY));
+    assertThat(hash01.apply(mapping(n, 0, 1)), is(hash01));
+    assertThat(hash01.apply(mapping(n, 1, 2)), is(ANY));
+    assertThat(hash01.apply(mapping(n, 1, 0)), is(hash01));
+    assertThat(hash01.apply(mapping(n, 2, 1, 0)), is(hash(2, 1)));
 
     // hash[2]
     RelDistribution hash2 = hash(2);
-    assertThat(hash2.apply(mapping(0)), is(RANDOM_DISTRIBUTED));
-    assertThat(hash2.apply(mapping(1)), is(RANDOM_DISTRIBUTED));
-    assertThat(hash2.apply(mapping(2)), is(hash(0)));
-    assertThat(hash2.apply(mapping(1, 2)), is(hash(1)));
+    assertThat(hash2.apply(mapping(n, 0)), is(ANY));
+    assertThat(hash2.apply(mapping(n, 1)), is(ANY));
+    assertThat(hash2.apply(mapping(n, 2)), is(hash(0)));
+    assertThat(hash2.apply(mapping(n, 1, 2)), is(hash(1)));
+
+    // hash[9] , 9 < mapping.sourceCount()
+    RelDistribution hash9 = hash(n - 1);
+    assertThat(hash9.apply(mapping(n, 0)), is(ANY));
+    assertThat(hash9.apply(mapping(n, 1)), is(ANY));
+    assertThat(hash9.apply(mapping(n, 2)), is(ANY));
+    assertThat(hash9.apply(mapping(n, n - 1)), is(hash(0)));
   }
 
-  private static Mapping mapping(int... sources) {
-    return Mappings.target(ImmutableIntList.of(sources), 10);
+  private static Mapping mapping(int sourceCount, int... sources) {
+    return Mappings.target(ImmutableIntList.of(sources), sourceCount);
   }
 
   private static RelDistribution hash(int... keys) {
